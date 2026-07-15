@@ -16,7 +16,7 @@ The second: **ssm-ecr-ec2**
 - fetches the **Java App** sources from **GitHub** when triggered by a `git push` webhook
 - builds the source with **Maven** on a **Jenkins** server
 - builds a **Docker** image and pushes it to **AWS ECR**
-- generates a `docker-compose.yaml` on the fly and deploys it on an **AWS EC2 instance** via **AWS SSM**, with **no SSH key** or **open SSH port** required — authentication relies entirely on the Jenkins server's **IAM role** only
+- generates a `docker-compose.yaml` on the fly and deploys it on an **AWS EC2 instance** via **AWS SSM**, with **no SSH key** or **open SSH port** required — authentication relies entirely on the Jenkins server's **IAM role**
 - allows the user to access the **Java app** on **EC2** via the **internet**
 
 **ssm-ecr-ec2-architecture** :
@@ -27,11 +27,11 @@ The second: **ssm-ecr-ec2**
 1. **Fork or duplicate this repo** on your own account
 2. **Prepare GitHub** : token for Jenkins and env vars
 3. **Prepare DockerHub** : token for Jenkins and env vars
-3. **Prepare a Server** with **Jenkins as controller** and **4 docker agents**
-4. **Prepare the instances** receiving the app on **AWS**
-5. **Prepare Jenkins** to be accessible from **GitHub** for webhook
+4. **Prepare a Server** with **Jenkins as controller** and **4 docker agents**
+5. **Prepare the instances** receiving the app on **AWS**
+6. **Prepare Jenkins** to be accessible from **GitHub** for webhook
 
-I tried to automate this as much as possible while keeping a minimum of steps and control to make it easier to understand.
+I tried to automate these steps as much as possible while keeping a minimum of them manual, to make each stage easier to understand.
 
 If you appreciate this work, please **follow** and **star this repo**. **Thanks!**
 
@@ -128,9 +128,9 @@ chmod 744 ./test_github_config.sh
 
 > *Account Settings > Personal Access Tokens > New access token*
 
-- **Access Token Description**: `jenkins-myapp` \
-- **Expiration Date**: `30 days` \
-- **Access Permissions**: `Read, Write & Delete` \
+- **Access Token Description**: `jenkins-myapp` 
+- **Expiration Date**: `30 days` 
+- **Access Permissions**: `Read, Write & Delete` 
 
 *Click `Generate`** and **copy the token** (displayed only once).
 
@@ -164,10 +164,10 @@ https://docs.aws.amazon.com/fr_fr/cli/latest/userguide/getting-started-install.h
 
 Login to the AWS Console with your admin user account
 
-> - **IAM > Users > Your Admin User > Security credentials** \
-> - **Access keys > Create access key > Command Line Interface (CLI)**
-> - **Description** : `jenkins-ci`
-> - **Copy** the credentials or **Download the .csv** out of the repo 
+> *IAM > Users > Your Admin User > Security credentials > Access keys > Create access key*
+- select **Command Line Interface (CLI)**
+- **Description** : `jenkins-ci`
+- **Copy** the credentials or **Download the .csv** out of the repo 
 
 Click **Done**
 
@@ -195,7 +195,7 @@ aws sts get-caller-identity
 
 # 5. Run Jenkins CI > Docker Hub > AWS EC2 via SSH
 
-### 5.1. Prépare the AWS EC2 with SSH authorization
+### 5.1. Prepare the AWS EC2 with SSH authorization
 
 
 ```
@@ -247,7 +247,7 @@ This script will :
     - **base-agent**: for simple operations like git
     - **maven-agent**: for building the java source as .JAR
     - **docker-agent**: for building JAR as docker image and store it on Docker Hub
-    - **aws-agent**: for pulling it from AWS EC2.
+    - **aws-agent**: for deploying to the AWS EC2 instance via SSH
   
   - install the required **credentials** (GitHub Token, DockerHub, EC2 IP and SSH Key)
     > *The `jenkins-ec2.pem` SSH key is mounted as **volume** and used as **secret** into Jenkins (not stored in .env) because its multi-line format would break the .env parsing*
@@ -282,7 +282,7 @@ This script will
  - **Get public URL for Jenkins** : asks if Jenkins has a public IP; 
    - if yes => use the local IP address,
    - if no => install Cloudflare and create a public IP tunnel. 
- - **Create or update the `github-webhook`** to let a `git push` triggered the Jenkins pipeline.
+ - **Create or update the** `github-webhook` to let a `git push` triggered the Jenkins pipeline.
 
 
 ### 5.4 Trigger a CI/CD run and verify the deployment !
