@@ -1,15 +1,24 @@
+### This repo compares SSH and SSM for AWS Deployements 
+
+with 2 differents pipelines : ssh-dockerhub-ec2 and ssm-ecr-ec2 on a Jenkins server
+
+**ssh-dockerhub-ec2-architecture** :
+![ssh-dockerhub-ec2-architecture](images/ssh-dockerhub-ec2-architecture.png)
+
+**ssm-ecr-ec2-architecture** :
+![ssm-ecr-ec2-architecture](images/ssm-ecr-ec2-architecture.png)
+
+
 # 1. Fork or Create a New Repository on GitHub
 
-This step is required for the GitHub webhook to Jenkins.
+This step is required in order to obtain your own webhook for Jenkins. 
 
-It requires to "fork" the repository - rather than simply cloning it - in order to obtain your own webhook for Jenkins. \
-The repository will thus be copied to your own GitHub account.
-
+Fork :
 ```bash
 env gh repo fork https://github.com/DevCTx/SSH_vs_SSM_AWS_Deployments --clone
 ```
 
-Alternatively, clone this repository, delete the Git history and move the source code to a new repository.
+Or alternatively, clone this repository, delete the Git history and move the source code to a new repository.
 
 ```bash
 git clone https://github.com/DevCTx/SSH_vs_SSM_AWS_Deployments
@@ -29,7 +38,7 @@ env gh repo create <your GitHub account>/SSH_vs_SSM_AWS_Deployments \
   --push
 ```
 
-If you reuse the code, Please keep this attribution.
+If you reuse this repo or a part of it, please keep this attribution.
 ```
 ### Credits
 Sources: [DevCTx/SSH_vs_SSM_AWS_Deployments](https://github.com/DevCTx/SSH_vs_SSM_AWS_Deployments).
@@ -43,11 +52,11 @@ Sources: [DevCTx/SSH_vs_SSM_AWS_Deployments](https://github.com/DevCTx/SSH_vs_SS
 
 > *Profile > Settings > Developer settings > Personal access tokens > Fine-grained tokens > Generate new token*
 
-- **Token name**: `jenkins-github-token` \
-- **Description**: `Jenkins Token for SSH_vs_SSM_AWS_Deployments repository` \
-- **Resource owner**: `<your GitHub account>` \
-- **Expiration**: `7 days` or more if needed \
-- **Repository Access**: Select **only** the `SSH_vs_SSM_AWS_Deployments` repository \
+- **Token name**: `jenkins-token` 
+- **Description**: `Jenkins Token for SSH_vs_SSM_AWS_Deployments repository` 
+- **Resource owner**: `<your GitHub account>` 
+- **Expiration**: `7 days` or more if needed 
+- **Repository Access**: Select **only** the `SSH_vs_SSM_AWS_Deployments` repository 
 - **Repository permissions** (everything else on *No access*) :
 
 >| Permission | Level | Why |
@@ -62,7 +71,7 @@ Sources: [DevCTx/SSH_vs_SSM_AWS_Deployments](https://github.com/DevCTx/SSH_vs_SS
 ### 2.2. Save it into a .env file
 
 ```
-JENKINS_GITHUB_TOKEN=<github_pat_xxx>
+GITHUB_JENKINS_TOKEN=<github_pat_xxx>
 GITHUB_OWNER=<your GitHub account>
 REPO=<your GitHub account>/SSH_vs_SSM_AWS_Deployments
 ```
@@ -71,21 +80,12 @@ REPO=<your GitHub account>/SSH_vs_SSM_AWS_Deployments
 ### 2.3. Test it
 
 ```
-set -a; source .env; set +a
-
-LOGIN=$(curl -sf -H "Authorization: Bearer $JENKINS_GITHUB_TOKEN" "https://api.github.com/user" | jq -r '.login')
-if [ "$LOGIN" = "$GITHUB_OWNER" ]; then
-  echo "✅ JENKINS_GITHUB_TOKEN matches GITHUB_OWNER ($LOGIN)"
-  curl -sf -H "Authorization: Bearer $JENKINS_GITHUB_TOKEN" "https://api.github.com/repos/$REPO" >/dev/null \
-    && echo "✅ REPO '$REPO' is accessible" \
-    || echo "❌ REPO '$REPO' not found or inaccessible"
-else
-  echo "❌ Mismatch: token belongs to '$LOGIN', not '$GITHUB_OWNER'"
-fi
+chmod 744 ./test_github_config.sh
+./test_github_config.sh
 ```
 *you should see :*
 ```
-✅ JENKINS_GITHUB_TOKEN matches GITHUB_OWNER (<your GitHub account>)
+✅ GITHUB_JENKINS_TOKEN matches GITHUB_OWNER (<your GitHub account>)
 ✅ REPO '<your GitHub account>/SSH_vs_SSM_AWS_Deployments' is accessible
 ```
 
@@ -101,7 +101,7 @@ fi
 
 - **Access Token Description**: `jenkins-myapp` \
 - **Expiration Date**: `30 days` \
-- **Access Permissions**: `Read & Write` \
+- **Access Permissions**: `Read, Write & Delete` \
 
 *Click `Generate`** and **copy the token** (displayed only once).
 
@@ -115,9 +115,8 @@ DOCKERHUB_PAT=<dckr_pat_xxx>
 ### 3.3. Test it
 
 ```bash
-set -a; source .env; set +a
-echo "$DOCKERHUB_PAT" | docker login -u "$DOCKER_USERNAME" --password-stdin
-docker logout
+chmod 744 ./test_dockerhub_config.sh
+./test_dockerhub_config.sh
 ```
 you should see the message : `Login Succeeded`
 
@@ -147,7 +146,11 @@ Click **Done**
 
 ```bash
 aws configure  # paste Access key, Secret access key, region eu-west-3, output json
-aws sts get-caller-identity   # verify
+```
+
+### 4.3. Test it
+```bash
+aws sts get-caller-identity   
 ```
 *you should see :*
 ```
@@ -167,24 +170,23 @@ aws sts get-caller-identity
 
 
 ```
-chmod 755 ./aws_ssh_ec2_install/aws_ssh_ec2_install.sh
-
+chmod 744 ./aws_ssh_ec2_install/aws_ssh_ec2_install.sh
 ./aws_ssh_ec2_install/aws_ssh_ec2_install.sh
 ```
 
 This script will :
 - create an **SSH key** `jenkins-ec2.pem` if missing
-- create a **Security Group** and opens ports 22 (for your IP) and 3080 (public)
-- create an **EC2 instance** with an Amazon Linux 2023 AMI in eu-west3 (Paris) Region, on a t3.micro configuration (2 vCPU, 1 GiB RAM, Free Tier compatible), 16 GiB volume 
-- install **Docker** and start the daemon at start
+- create a **Security Group** and open ports **22** (for your IP) and **3080** (public)
+- calculate the **minimal disk size** required for the app on an **Amazon Linux 2023** instance
+- create an **EC2 instance** with an **Amazon Linux 2023 AMI** in the **eu-west-3** Region (Paris), on a **t3.micro** configuration (2 vCPU, 1 GiB RAM, Free Tier compatible) and the **appropriate volume size**
+- install **Docker** and start the daemon on boot
 - retrieve the **public IP** and set it into the **.env** file as **EC2_IP**
 
 
 ### 5.2 Install the Jenkins Server with an SSH environment 
 
 ```
-chmod 755 ./jenkins_install/docker_jenkins_platform_install.sh
-
+chmod 744 ./jenkins_install/docker_jenkins_platform_install.sh
 sudo ./jenkins_install/docker_jenkins_platform_install.sh
 ```
 
@@ -228,12 +230,12 @@ This script will :
     - `ssh-dockerhub-ec2` : a **full CI/CD** triggered from GitHub push, building source and pushing the image to dockerhub before to pull it from the EC2 instance. 
 
 
-After the installation :
+### After the installation :
 - **Open** `http://<jenkins-ip>:8080` \
 - **Enter** your admin `username` and the generated `password` \
 - *Optional* : **Build** the `agent-testings` pipeline to test the docker agents from Jenkins
   On `<Build pipeline>` into Jenkins :
-    ![ssh-dockerhub-ec2](images/agent-testings.png)
+    ![ssh-dockerhub-ec2](images/agent-testings-jenkins.png)
 
 
 - Before the run the CI/CD pipelines, Jenkins need to have a public IP.
@@ -241,33 +243,46 @@ After the installation :
 ### 5.3 Update the GitHub Webhook with a public IP (or set it with Cloudflare)
 
 ```
-chmod 755 ./jenkins_install/setup_github_webhook.sh
-
+chmod 744 ./jenkins_install/setup_github_webhook.sh
 ./jenkins_install/setup_github_webhook.sh
 ```
 
 This script will 
- - **Load env**: sources .env, requires `JENKINS_GITHUB_TOKEN` + `REPO`
- - **Get public URL for Jenkins** : asks if Jenkins has a public IP; if yes uses the local IP address, else creates install Cloudflare and create a public IP tunnel.
+ - **Load env**: sources .env, requires `GITHUB_JENKINS_TOKEN` + `REPO`
+
+ - **Get public URL for Jenkins** : asks if Jenkins has a public IP; 
+   - if yes => use the local IP address,
+   - if no => install Cloudflare and create a public IP tunnel. 
  - **Create or update the `github-webhook`** to let a `git push` triggered the Jenkins pipeline.
 
 
-### 5.4 Run ssh-dockerhub-ec2 pipeline
+### 5.4 Trigger a CI/CD run and verify the deployment !
 
 ```
-git commit --allow-empty -m "test webhook" && git push
+chmod 744 ./test_deployments.sh
+./test_deployments.sh
 ```
-  ![ssh-dockerhub-ec2](images/ssh-dockerhub-ec2.png)
 
-Then the DockerHub should be updated with the last version only
-[https://hub.docker.com/repository/docker/`<your dockerhub account>`/demo-java-app/general](https://hub.docker.com/repository/docker/devct/demo-java-app/general)
+This script will : 
 
+- **Load env**: DOCKER_USERNAME, DOCKERHUB_PAT, EC2_IP from .env;
+- **Get the last tag** from DockerHub before the push
+- **Trigger the pipeline** with an empty commit and git push
+- **Wait for the build on Jenkiins and new tag on Docker Hub**
+- **Wait for cleanup on Docker Hub**
+- **Verify EC2**: connect via SSH and check if the image tag running the container is the last created
 
+### *On Jenkins, you should see*
+![ssh-dockerhub-ec2](images/ssh-dockerhub-ec2-jenkins.png)
 
-  - `ssh-dockerhub-ec2` : a **full CI/CD** triggered from GitHub push, building source and pushing the image to dockerhub before to pull it from the EC2 instance. \
-  \
-  On `<Build pipeline>` into Jenkins or on a `git push` on repo sources :
+### *On DockerHub, you should see*
+![demo-java-app](images/demo-java-app-dockerhub.png)
 
+### *On EC2, you should see*
+![java-app-docker-ec2](images/java-app-docker-ec2.png)
+
+### *On internet, you should see*
+![java-app-web](images/java-app-web.png)
 
 ---
 ---

@@ -6,15 +6,15 @@ cd "$(dirname "$0")"    # Runs the script into this folder
 
 ####################################################################################################
 # 1. Set the Environment Variables
-# Source .env : GITHUB_OWNER, GITHUB_TOKEN, REPO
+# Source .env : GITHUB_OWNER, GITHUB_JENKINS_TOKEN, REPO
 ####################################################################################################
 
 [ -f ../.env ] && { set -a; source ../.env; set +a; }
-: "${GITHUB_TOKEN:?Set GITHUB_TOKEN in .env}"
-: "${REPO:?Set REPO=<owner>/<repo> in .env}"
+: "${GITHUB_JENKINS_TOKEN:?Set GITHUB_JENKINS_TOKEN in .env first}"
+: "${REPO:?Set REPO=<owner>/<repo> in .env first}"
  
 API="https://api.github.com/repos/$REPO/hooks"
-AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json")
+AUTH=(-H "Authorization: Bearer $GITHUB_JENKINS_TOKEN" -H "Accept: application/vnd.github+json")
 
 
 ####################################################################################################
@@ -71,7 +71,7 @@ github_api() {
  
   case "$code" in
     2*) printf '%s' "$body"; return 0 ;;
-    401) echo "ERROR 401 — bad or expired GITHUB_TOKEN. Check the token in .env." >&2 ;;
+    401) echo "ERROR 401 — bad or expired GITHUB_JENKINS_TOKEN. Check the token in .env." >&2 ;;
     403) echo "ERROR 403 — the token lacks the webhook permission." >&2
          echo "  Fine-grained token: Repository permissions > Webhooks > Read and write." >&2
          echo "  Classic token:      scope 'admin:repo_hook' (or full 'repo')." >&2 ;;

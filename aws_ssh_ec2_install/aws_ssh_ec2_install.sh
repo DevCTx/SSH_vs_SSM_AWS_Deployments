@@ -46,6 +46,13 @@ AL2023_AMI=$(aws ec2 describe-images --region $REGION --owners amazon \
   --filters "Name=name,Values=al2023-ami-*-x86_64" \
   --query 'sort_by(Images,&CreationDate)[-1].ImageId' --output text)
 
+# Ensure enough disk for the app: AMI's required minimum size + 10GB margin
+SNAPSHOT_SIZE=$(aws ec2 describe-images --region $REGION --image-ids $AL2023_AMI \
+  --query 'Images[0].BlockDeviceMappings[0].Ebs.VolumeSize' --output text)
+VOLUME_SIZE=$((SNAPSHOT_SIZE + 10))
+echo "AMI base volume size: ${SNAPSHOT_SIZE}GB -> allocating ${VOLUME_SIZE}GB"
+
+
 echo ""
 echo "Tests if EC2 exists or Create it and install docker"
 
@@ -76,7 +83,7 @@ EOF
     --key-name $JENKINS_KEY \
     --security-group-ids $SG_ID \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_SSH}-instance}]" \
-    --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":16,"VolumeType":"gp3"}}]' \
+    --block-device-mappings "[{\"DeviceName\":\"/dev/xvda\",\"Ebs\":{\"VolumeSize\":${VOLUME_SIZE},\"VolumeType\":\"gp3\"}}]" \
     --query 'Instances[0].InstanceId' \
     --output text \
     --user-data file:///tmp/user-data.sh)  # file:// + /tmp/...

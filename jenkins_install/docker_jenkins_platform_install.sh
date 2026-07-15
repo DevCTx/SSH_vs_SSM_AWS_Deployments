@@ -165,7 +165,7 @@ credentials:
               scope: GLOBAL
               id: "github-token"
               username: "${GITHUB_OWNER}"
-              password: "${JENKINS_GITHUB_TOKEN}"
+              password: "${GITHUB_JENKINS_TOKEN}"
 
 jobs:
 
@@ -451,8 +451,11 @@ echo "Waiting for the Jenkins controller to start..."
 
 sleep 15
 
+JENKINS_IP="$(hostname -I | awk '{print $1}')"
+set_env JENKINS_IP "$JENKINS_IP"
+
 echo ""
-echo "✅ Jenkins ready: http://$(hostname -I | awk '{print $1}'):8080"
+echo "✅ Jenkins ready: http://$JENKINS_IP:8080"
 echo "🔑 Login : $JENKINS_ADMIN_USER / password : $JENKINS_ADMIN_PASSWORD"
 
 echo ""

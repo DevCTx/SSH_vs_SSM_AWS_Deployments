@@ -12,8 +12,6 @@ cd "$(dirname "$0")"
 : "${DOCKERHUB_PAT:?Set DOCKERHUB_PAT in .env}"
 : "${EC2_IP:?Set EC2_IP in .env}"
 
-unset GITHUB_TOKEN   # avoid interfering with git push auth (gh/credential helper)
-
 IMAGE_NAME="demo-java-app"
 CONTAINER_NAME="java-app"
 SSH_KEY="aws_ssh_ec2_install/jenkins-ec2.pem"
