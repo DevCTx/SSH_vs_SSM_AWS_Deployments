@@ -23,13 +23,14 @@ The second: **ssm-ecr-ec2**
 ![ssm-ecr-ec2-architecture](images/ssm-ecr-ec2-architecture.png)
 
 ---
-### To test these pipelines, it requires some infra configurations :
-1. **Fork or duplicate this repo** on your own account
-2. **Prepare GitHub** : token for Jenkins and env vars
-3. **Prepare DockerHub** : token for Jenkins and env vars
-4. **Prepare a Server** with **Jenkins as controller** and **4 docker agents**
-5. **Prepare the instances** receiving the app on **AWS**
-6. **Prepare Jenkins** to be accessible from **GitHub** for webhook
+## To test these pipelines, some infrastructure setup is required:
+
+1. **Fork or duplicate this repo** to your own account
+2. **Prepare GitHub**: a token for Jenkins and the related env vars
+3. **Prepare Docker Hub**: a token for Jenkins and the related env vars
+4. **Prepare a server** running **Jenkins as controller** with **4 Docker agents**
+5. **Prepare the AWS instances** that will host the app
+6. **Make Jenkins** reachable from GitHub for the webhook
 
 I tried to automate these steps as much as possible while keeping a minimum of them manual, to make each stage easier to understand.
 
