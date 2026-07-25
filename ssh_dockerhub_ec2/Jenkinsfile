@@ -16,8 +16,6 @@ library identifier: "jenkins-limited-shared-library@main",
     ])
 
 
-def GIT_PROJECT_URL = "https://github.com/DevCTx/DevOps.git"
-
 pipeline {
 
 	agent none
@@ -34,6 +32,7 @@ pipeline {
         APP_CONTAINER_PORT = '3080'
         APP_CONTAINER_NAME = 'java-app'        
         AWS_DEFAULT_REGION = 'eu-west-3'
+        
         APP_SRC_DIR = 'java_app'          // code source partagé (Maven)
         APP_DIR = 'ssh_dockerhub_ec2'   
     }
@@ -64,14 +63,13 @@ pipeline {
             steps {
                 unstash 'sources'
 
-                dir(env.APP_SRC_DIR) {
-                    
+                dir(env.APP_SRC_DIR) {                    
                     // shared lib: build maven java app into the app folder
                     localBuildJar()  
                 }
                 // Then copy the JAR file into APP_DIR for Docker
-                sh "mkdir -p ${APP_DIR}/target && cp ${APP_SRC_DIR}/target/*.jar ${APP_DIR}/target/"
-                stash name: 'app_files', includes: "${APP_DIR}/target/*.jar,${APP_DIR}/Dockerfile"
+                sh "mkdir -p ${env.APP_DIR}/target && cp ${env.APP_SRC_DIR}/target/*.jar ${env.APP_DIR}/target/"
+                stash name: 'app_files', includes: "${env.APP_DIR}/target/*.jar,${env.APP_DIR}/Dockerfile"
             }
 
             post { always { cleanWs() } }   // Clean Workspace
@@ -98,7 +96,7 @@ pipeline {
             steps {
                 unstash 'app_files'
 
-                dir("${APP_DIR}/") {
+                dir(env.APP_DIR) {
 
                     // shared lib: Deploy with docker on EC2 via SSH
                     ec2DeployDockerCmdSSH()     

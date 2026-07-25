@@ -1,15 +1,13 @@
 #!/usr/bin/env groovy
 //
-// Jenkinsfile
+// Jenkinsfile — ssm_ecr_ec2 variant
+// Build a Java app with Maven, push to AWS ECR, deploy to AWS EC2 over SSM.
+// Uses a project-scoped shared library.
 //
-// This project uses a limited shared library within the project scope only
 
 def GIT_SHARED_LIB = "https://github.com/DevCTx/jenkins-limited-shared-library.git"
-def GIT_PROJECT_URL = "https://github.com/DevCTx/DevOps.git"
-def APP_DIR = "PART3 - Core/9. AWS Services/jma-ssm-ecr-ec2"
 
-
-// This tells Jenkins to download a Shared Library from GitHub before running this pipeline
+// Download the shared library from GitHub before the pipeline runs.
 library identifier: "jenkins-limited-shared-library@main", 
     retriever: modernSCM([
         $class: "GitSCMSource", 
@@ -34,58 +32,44 @@ pipeline {
         APP_CONTAINER_PORT = '3080'
         APP_CONTAINER_NAME = 'java-app'        
         AWS_DEFAULT_REGION = 'eu-west-3'
+
+        APP_SRC_DIR = 'java_app'          // code source partagé (Maven)
+        APP_DIR = "ssm-ecr-ec2"
     }
 
     stages {
 
         stage('Init env') {
-            agent { label 'docker-agent' }
+            agent { label 'base-agent' }
 
             steps {
+                
+                checkout scm
+
                 script {
                     // Only at this step to be sure to get the build version
-                    env.APP_IMAGE_TAG = "${env.APP_VERSION}.${env.BUILD_NUMBER}"
+                    env.APP_IMAGE_TAG = "${env.APP_VERSION}.${BUILD_NUMBER}"
                 }
-            }            
-
-            post { always { cleanWs() } }   // Clean Workspace
-        }
-
-        stage('Checkout SCM') {
-            agent { label 'docker-agent' }
-
-            steps {
-                checkout([
-                  $class: 'GitSCM',
-                  branches: [[name: 'jenkins-jobs']],
-                  userRemoteConfigs: [[url: GIT_PROJECT_URL ]],
-                  extensions: [
-                    [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[$class: 'SparseCheckoutPath', path: "${APP_DIR}/"]]]
-                  ]
-                ])
-
-                stash name: 'sources', includes: "${APP_DIR}/**"
+                
+                stash name: 'sources', includes: '**'
             }
-
+            
             post { always { cleanWs() } }   // Clean Workspace
         }
         
         stage("build jar") {
             agent { label 'maven-agent' }
 
-            when { expression { env.BRANCH_NAME == "jenkins-jobs" } }  //env.GIT_NAME == "origin/jenkins-jobs" in single pipeline
-            
             steps {
                 unstash 'sources'
 
-                script {
-                    dir("${APP_DIR}/") {
-                        // build maven java app
-                        localBuildJar()  // calls the Library function
-                    }
+                dir(env.APP_SRC_DIR) {
+                    // build maven java app
+                    localBuildJar()  // calls the Library function
                 }
-
-                stash name: 'app_files', includes: "${APP_DIR}/target/*.jar,${APP_DIR}/Dockerfile,${APP_DIR}/docker-compose.yaml"
+                // Then copy the JAR file into APP_DIR for Docker
+                sh "mkdir -p ${env.APP_DIR}/target && cp ${env.APP_SRC_DIR}/target/*.jar ${env.APP_DIR}/target/"
+                stash name: 'app_files', includes: "${env.APP_DIR}/target/*.jar,${env.APP_DIR}/Dockerfile,${env.APP_DIR}/docker-compose.yaml"
             }
 
             post { always { cleanWs() } }   // Clean Workspace
@@ -94,16 +78,12 @@ pipeline {
         stage("build and push image") {
             agent { label 'docker-agent' }
 
-            when { expression { env.BRANCH_NAME == "jenkins-jobs" } }  //env.GIT_NAME == "origin/jenkins-jobs" in single pipeline
-
             steps {
                 unstash 'app_files'
 
-                script {
-                    dir("${APP_DIR}/") {
-                        // build and push docker image on docker hub
-                        ecrBuildAndPushImageSSM() // calls the Library function
-                    }
+                dir(env.APP_DIR) {
+                    // build and push docker image on docker hub
+                    ecrBuildAndPushImageSSM() // calls the Library function
                 }
             }
 
@@ -113,15 +93,12 @@ pipeline {
         stage("deploy") {
             agent { label 'aws-agent' }
         
-            when { expression { env.BRANCH_NAME == "jenkins-jobs" } }  //env.GIT_NAME == "origin/jenkins-jobs" in single pipeline
             steps {
                 unstash 'app_files'
 
-                script {
-                    dir("${APP_DIR}/") {
-                        // Deploy by copying docker-compose.yaml
-                        ec2DeployDockerComposeSSM()
-                    }
+                dir(env.APP_DIR) {
+                    // Deploy by copying docker-compose.yaml
+                    ec2DeployDockerComposeSSM()
                 }
             }
 
@@ -131,9 +108,8 @@ pipeline {
         stage("cleanup EC2 Images") {
             agent { label 'aws-agent' }
 
-            when { expression { env.BRANCH_NAME == "jenkins-jobs" } }  //env.GIT_NAME == "origin/jenkins-jobs" in single pipeline
             steps {
-                script {
+                dir(env.APP_DIR) {
                     // clean docker image on AWS EC2 instance server with SSM
                     ec2CleanImageExceptTagSSM()
 
@@ -148,9 +124,8 @@ pipeline {
         stage("cleanup local and DockerHub Images") {
             agent { label 'docker-agent' }
 
-            when { expression { env.BRANCH_NAME == "jenkins-jobs" } }  //env.GIT_NAME == "origin/jenkins-jobs" in single pipeline
             steps {
-                script {
+                dir(env.APP_DIR) {                
                     // clean docker image on Jenkins server
                     localCleanImageExceptTag()
                 }

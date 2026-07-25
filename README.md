@@ -1,9 +1,9 @@
-## This repo compares SSH and SSM for AWS Deployments with 2 pipelines
+## This repo compares SSH and SSM for AWS Deployments - ***through 3 progressive pipelines***
 
 This first one: **ssh-dockerhub-ec2**
 
 - fetches the **Java app** sources from **GitHub** when triggered by a `git push` webhook
-- builds the source with **Maven** on a **Jenkins** server
+- builds the source with **Maven** on a local **Jenkins** server
 - builds a **Docker** image and pushes it to **Docker Hub**
 - deploys this image to an **AWS EC2 instance** by transferring a **script** and **variables** via **SSH** that allow the image to be pulled from **Docker Hub**
 - lets the user to access the **Java app** on **EC2** over the **internet**
@@ -72,7 +72,7 @@ env gh repo create <your_GitHub_account>/SSH_vs_SSM_AWS_Deployments \
 If you reuse this repo or a part of it, please keep this attribution.
 ```
 ### Credits
-Sources: [DevCTx/SSH_vs_SSM_AWS_Deployments](https://github.com/DevCTx/SSH_vs_SSM_AWS_Deployments).
+Initial Sources: [DevCTx/SSH_vs_SSM_AWS_Deployments](https://github.com/DevCTx/SSH_vs_SSM_AWS_Deployments).
 ```
 
 ---
@@ -108,7 +108,7 @@ REPO=<your GitHub account>/SSH_vs_SSM_AWS_Deployments
 ```
 ---
 
-### 2.3. Test it
+### 2.3. Test it (recommended)
 
 ```
 chmod 744 ./test_github_config.sh
@@ -143,7 +143,7 @@ DOCKER_USERNAME=<your Docker Hub account>
 DOCKERHUB_PAT=<dckr_pat_xxx>
 ```
 
-### 3.3. Test it
+### 3.3. Test it (recommended)
 
 ```bash
 chmod 744 ./test_dockerhub_config.sh
@@ -179,7 +179,7 @@ Click **Done**
 aws configure  # paste Access key, Secret access key, region eu-west-3, output json
 ```
 
-### 4.3. Test it
+### 4.3. Test it (recommended)
 ```bash
 aws sts get-caller-identity   
 ```

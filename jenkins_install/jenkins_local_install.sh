@@ -48,6 +48,25 @@ cd "$(dirname "$0")"    # Runs the script into this folder
 ENV_FILE="$(pwd)/../.env"
 set -a; source "$ENV_FILE"; set +a   # reload the .env for the new vars
 
+
+####################################################################################################
+# Detect if the script is running on a AWS instance 
+####################################################################################################
+echo ""
+echo "Detect if the script is running on a AWS instance ..."
+
+# Get AWS metadata token (IMDSv2)
+# 169.254.169.254 is a special address accessible only from the server
+TOKEN=$(curl -s --max-time 1 -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
+
+IS_AWS=false
+[ -n "$TOKEN" ] && IS_AWS=true
+export IS_AWS
+
+echo "IS_AWS=$IS_AWS"
+
+
 ####################################################################################################
 # PREREQUISITES : Install Docker on the host if it does not exist yet
 ####################################################################################################
@@ -173,7 +192,8 @@ credentials:
 
 jobs:
 
-  # 1. AGENT TESTS: a pipeline that tests the 3 agents (inline script, no repo needed)
+  # 1. AGENT TESTINGS: a pipeline that tests the 4 agents (Base, Maven, Docker, AWS CLI)
+  # Created with Jenkins on local or on AWS
   - script: >
       pipelineJob('agent-testings') {
         definition {
@@ -206,6 +226,8 @@ jobs:
         }
       }
 
+  # 2. GIT-JENKINS-SSH-DOCKERHUB-EC2 : A pipeline to test SSH with DockerHub and EC2
+  # Created with Jenkins on local or on AWS
   - script: >
       pipelineJob('ssh-dockerhub-ec2') {
         triggers {
@@ -216,13 +238,38 @@ jobs:
             scm {
               git {
                 remote {
-                  url("https://github.com/${REPO}.git")
+                  url("https://github.com/${System.getenv('REPO')}.git")
                   credentials('github-token')
                 }
                 branch('*/main')
               }
             }
             scriptPath('ssh_dockerhub_ec2/Jenkinsfile')
+          }
+        }
+      }
+  
+  # 3. GIT-JENKINS-SSM-ECR-EC2 : A pipeline to test SSM to ECR and EC2
+  # Created with Jenkins on AWS only (IS_AWS=true)
+  - script: >
+      if (System.getenv('IS_AWS') == 'true') {
+        pipelineJob('ssm-ecr-ec2') {
+          triggers {
+            githubPush()
+          }
+          definition {
+            cpsScm {
+              scm {
+                git {
+                  remote {
+                    url("https://github.com/${System.getenv('REPO')}.git")
+                    credentials('github-token')
+                  }
+                  branch('*/main')
+                }
+              }
+              scriptPath('ssm_ecr_ec2/Jenkinsfile')
+            }
           }
         }
       }
@@ -368,6 +415,7 @@ services:
       SSH_EC2_IP: "${SSH_EC2_IP}"
       JENKINS_ADMIN_USER: "${JENKINS_ADMIN_USER}"
       JENKINS_ADMIN_PASSWORD: "${JENKINS_ADMIN_PASSWORD}"
+      IS_AWS: "${IS_AWS}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock  # Access to the host's Docker daemon
       - jenkins_home:/var/jenkins_home	           # persists Jenkins data
@@ -455,18 +503,9 @@ echo "Waiting 15s for the Jenkins controller to start..."
 sleep 15
 
 ####################################################################################################
-# Detect if the script is running on a AWS instance 
+# If the script is running on a AWS instance , get the public-ipv4 with AWS TOKEN
+# else use hostname
 ####################################################################################################
-IS_AWS=false
-
-echo ""
-echo "Detect if the script is running on a AWS instance ..."
-
-# Get AWS metadata token (IMDSv2)
-# 169.254.169.254 is a special address accessible only from the server
-TOKEN=$(curl -s --max-time 1 -X PUT "http://169.254.169.254/latest/api/token" \
-  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
-[ -n "$TOKEN" ] && IS_AWS=true
 
 if $IS_AWS; then
   echo "Detected: running on AWS EC2"
